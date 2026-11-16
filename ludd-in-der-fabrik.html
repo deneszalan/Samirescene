@@ -1,0 +1,409 @@
+<title>Ludd in der Fabrik</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Zilla+Slab:wght@500;700&display=swap">
+<style>
+/* Layout: one stage (16:9 scene) with caption and controls directly below it, word list underneath. */
+:root{
+  --bg:#E3E8EB; --panel:#F4F7F8; --fg:#1C2730; --muted:#55636E; --line:#C2CCD2;
+  --accent:#A3232B; --accent-fg:#FFFFFF; --flax:#7A5D0E;
+  --tag-bg:#F4EFD9; --tag-fg:#1C2730; --stage:#10161B;
+  --display:'Zilla Slab',Rockwell,'Roboto Slab',Georgia,serif;
+  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#12191F; --panel:#1B252D; --fg:#E3E9EC; --muted:#95A4AE; --line:#2F3C46; --accent:#E4666B; --accent-fg:#19090A; --flax:#D9B95F; color-scheme:dark }
+}
+:root[data-theme="dark"]{ --bg:#12191F; --panel:#1B252D; --fg:#E3E9EC; --muted:#95A4AE; --line:#2F3C46; --accent:#E4666B; --accent-fg:#19090A; --flax:#D9B95F; color-scheme:dark }
+
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1120px;margin-inline:auto;padding-block:20px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,3.4vw,2.1rem);line-height:1.1;margin:0;text-wrap:balance}
+.src{color:var(--muted);font-size:.9rem;margin:0}
+
+.player{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage{position:relative;container-type:inline-size;aspect-ratio:16/9;width:min(100%, max(320px, calc((100vh - 380px) * 16 / 9)));max-width:100%;margin-inline:auto;background:var(--stage);border-radius:4px;overflow:hidden}
+.stage canvas{display:block;width:100%;height:100%}
+#labs{position:absolute;inset:0;pointer-events:none}
+.lab{position:absolute;transform:translate(-50%,-50%);font:600 clamp(8px,1.5cqw,17px)/1.15 var(--body);background:var(--tag-bg);color:var(--tag-fg);padding:.22em .5em;border-radius:3px;white-space:nowrap}
+
+.chapters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.chapters button{flex:none;font:500 .85rem var(--body);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chapters button[aria-current="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+.cap{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.step{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--flax);font-weight:600;margin:0}
+.cap h2{font-family:var(--display);font-weight:700;font-size:1.45rem;line-height:1.15;margin:0}
+.cap p.text{margin:4px 0 0;font-size:clamp(1.02rem,1.6vw,1.2rem);line-height:1.5;max-width:68ch;min-height:4.5em}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls .gap{flex:1 1 20px}
+button.btn{font:600 .95rem var(--body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:9px 14px;cursor:pointer}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);padding-inline:22px}
+button.btn[aria-pressed="true"]{border-color:var(--fg);box-shadow:inset 0 -3px 0 var(--flax)}
+button.btn:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:3px solid var(--flax);outline-offset:2px}
+
+.words h3{font-family:var(--display);font-size:1.15rem;margin:0 0 8px}
+.words dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px 22px;margin:0}
+.words div{border-top:1px solid var(--line);padding-top:6px;min-width:0}
+.words dt{font-weight:600}
+.words dd{margin:0;color:var(--muted);font-size:.92rem}
+footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padding-top:12px;max-width:75ch}
+
+.player:fullscreen{background:var(--bg);padding:16px;justify-content:center}
+.player:fullscreen .stage{width:min(100%, calc((100vh - 270px) * 16 / 9));margin-inline:auto}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ludd in der Fabrik</h1>
+    <p class="src">Jonas Lüscher, „Verzauberte Vorbestimmung“, S. 126–128</p>
+  </header>
+
+  <div class="player" id="player">
+    <nav class="chapters" id="chapters" aria-label="Stationen"></nav>
+    <div class="stage">
+      <canvas id="cv" aria-label="Animierte Szene"></canvas>
+      <div id="labs"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="prev">← Zurück</button>
+      <button class="btn primary" id="next">Weiter →</button>
+      <span class="gap"></span>
+      <button class="btn" id="play" aria-pressed="false">Pause</button>
+      <button class="btn" id="wordsBtn" aria-pressed="true">Wörter</button>
+      <button class="btn" id="soundBtn" aria-pressed="false">Ton</button>
+      <button class="btn" id="fsBtn">Vollbild</button>
+    </div>
+    <div class="cap" aria-live="polite">
+      <p class="step" id="step"></p>
+      <h2 id="ttl"></h2>
+      <p class="text" id="txt"></p>
+    </div>
+  </div>
+
+  <section class="words" id="words">
+    <h3>Wörter zu dieser Station</h3>
+    <dl id="wordlist"></dl>
+  </section>
+
+  <footer>Die Stationen „Am Abend“, „Der Riemen“ und das Rätsel um das Loch in der Wand folgen einer Zusammenfassung des Kapitels. Alle anderen Stationen folgen dem Auszug S. 126–128.</footer>
+</div>
+
+<script>
+(()=>{
+const W=1600,H=900,cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const C={oak:'#8A5A2B',oakD:'#5A3717',oakL:'#B8854C',linen:'#EDE5CF',flax:'#D9B95F',iron:'#4A5A68',ironD:'#1B242C',ironL:'#8496A3',brick:'#8E4B3B',brickD:'#63332A',blood:'#B3202A',thread:'#F3ECD6',leather:'#7A5230',gold:'#F0CF6A'};
+const SLAB="'Zilla Slab',Rockwell,Georgia,serif";
+const lerp=(a,b,u)=>a+(b-a)*u, clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), ss=x=>{x=clamp(x);return x*x*(3-2*x)}, frac=x=>x-Math.floor(x), rnd=i=>frac(Math.sin(i*127.1+3.7)*43758.5453);
+const L2=(a,b,u)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u)];
+function rect(x,y,w,h,f){ctx.fillStyle=f;ctx.fillRect(x,y,w,h)}
+function circ(x,y,r,f){ctx.fillStyle=f;ctx.beginPath();ctx.arc(x,y,Math.max(0,r),0,7);ctx.fill()}
+function ln(a,b,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+function poly(p,f,s,w){ctx.beginPath();ctx.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length;i++)ctx.lineTo(p[i][0],p[i][1]);ctx.closePath();if(f){ctx.fillStyle=f;ctx.fill()}if(s){ctx.strokeStyle=s;ctx.lineWidth=w||2;ctx.lineJoin='round';ctx.stroke()}}
+function wheel(x,y,r,a,col,n=6,w){ctx.strokeStyle=col;ctx.lineWidth=w||Math.max(2,r*.16);ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();ctx.lineWidth=Math.max(1.5,r*.08);for(let i=0;i<n;i++){const q=a+i*Math.PI*2/n;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(q)*r,y+Math.sin(q)*r);ctx.stroke()}circ(x,y,r*.16,col)}
+function text(s,x,y,size,col,al='center'){ctx.font=`700 ${size}px ${SLAB}`;ctx.textAlign=al;ctx.textBaseline='middle';ctx.fillStyle=col;ctx.fillText(s,x,y)}
+function bricks(x,y,w,h,col='rgba(0,0,0,.22)'){ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.strokeStyle=col;ctx.lineWidth=2;for(let j=0,yy=y;yy<y+h;yy+=26,j++){ctx.beginPath();ctx.moveTo(x,yy);ctx.lineTo(x+w,yy);ctx.stroke();for(let xx=x+(j%2?0:32);xx<x+w;xx+=64){ctx.beginPath();ctx.moveTo(xx,yy);ctx.lineTo(xx,yy+26);ctx.stroke()}}ctx.restore()}
+const mk=(ox,oy,sc,ax,az)=>(X,Y,Z)=>[ox+(X*ax[0]+Z*az[0])*sc,oy+(-Y+X*ax[1]+Z*az[1])*sc];
+function along(p,u){let tot=0;const d=[];for(let i=1;i<p.length;i++){const l=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);d.push(l);tot+=l}let r=clamp(u)*tot;for(let i=0;i<d.length;i++){if(r<=d[i])return L2(p[i],p[i+1],d[i]?r/d[i]:0);r-=d[i]}return p[p.length-1]}
+
+/* ---------- labels ---------- */
+let words=true,frameLabs=[];const labBox=document.getElementById('labs'),labEls=new Map();
+function lab(tx,ax,ay,lx,ly){if(!words)return;frameLabs.push([tx,lx,ly]);ctx.save();ctx.lineCap='round';ctx.strokeStyle='rgba(16,22,27,.7)';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(ax,ay);ctx.stroke();ctx.strokeStyle='#F4EFD9';ctx.lineWidth=2.5;ctx.stroke();circ(ax,ay,8,'rgba(16,22,27,.7)');circ(ax,ay,5.5,'#F4EFD9');ctx.restore()}
+function flushLabs(){const seen=new Set();for(const [tx,x,y] of frameLabs){let el=labEls.get(tx);if(!el){el=document.createElement('span');el.className='lab';el.textContent=tx;labBox.appendChild(el);labEls.set(tx,el)}el.hidden=false;el.style.left=(x/W*100)+'%';el.style.top=(y/H*100)+'%';seen.add(tx)}for(const [tx,el] of labEls)if(!seen.has(tx))el.hidden=true;frameLabs=[]}
+
+/* ---------- figures ---------- */
+function person(x,y,s,o={}){const c=ctx,col=o.col||C.ironD,sh=o.shirt||col;c.save();c.translate(x,y);c.scale((o.dir||1)*s,s);c.lineCap='round';c.lineJoin='round';let hy=-95;
+  if(o.sit){hy=0;c.strokeStyle=col;c.lineWidth=o.skirt?24:14;c.beginPath();c.moveTo(0,0);c.lineTo(44,3);c.lineTo(47,60);c.stroke()}
+  else if(o.skirt){poly([[-13,hy],[13,hy],[27,-3],[-27,-3]],col)}
+  else{c.strokeStyle=col;c.lineWidth=14;for(const g of[1,-1]){const a=o.walk==null?g*.08:Math.sin(o.walk)*g*.5;c.beginPath();c.moveTo(0,hy);c.lineTo(Math.sin(a)*93,hy+Math.cos(a)*93);c.stroke()}}
+  c.translate(0,hy);c.rotate(o.bend||0);
+  const arm=(a,cl)=>{a=a||[.06,.12];const ex=Math.sin(a[0])*34,ey=-56+Math.cos(a[0])*34,hx=ex+Math.sin(a[0]+a[1])*32,hY=ey+Math.cos(a[0]+a[1])*32;c.strokeStyle=cl;c.lineWidth=10;c.beginPath();c.moveTo(0,-56);c.lineTo(ex,ey);c.lineTo(hx,hY);c.stroke();return[hx,hY]};
+  const hb=arm(o.armB,o.shade||sh);
+  c.strokeStyle=sh;c.lineWidth=27;c.beginPath();c.moveTo(0,-6);c.lineTo(0,-56);c.stroke();
+  circ(0,-84,16,o.head||col);
+  if(o.cap){c.fillStyle=o.cap;c.beginPath();c.arc(0,-88,17,Math.PI,0);c.lineTo(26,-87);c.lineTo(-17,-87);c.fill()}
+  if(o.bun)circ(-15,-94,8,o.head||col);
+  const ha=arm(o.armA,sh);
+  if(o.hold)o.hold(c,ha,hb);
+  c.restore()}
+const LUDD={col:'#2A2018',shirt:C.linen,shade:'#CFC6AE',head:'#2A2018'};
+const WORK={col:'#0E1419',shirt:'#6F7F8B',shade:'#5B6A75',head:'#0E1419'};
+
+/* ---------- loom (hand and power) ---------- */
+function loom(ox,oy,sc,c,o={}){const P=mk(ox,oy,sc,[1,0],[.42,-.26]),pw=o.power,F=pw?C.iron:C.oak,FD=pw?'#34424E':C.oakD,Wd=170,TH=250,bw=9*sc;
+  const k=Math.floor(c),f=c-k,par=k%2?1:-1,open=ss(f/.15)*(1-ss((f-.88)/.12)),fly=ss((f-.15)/.4),z0=par>0?-22:Wd+22,z1=par>0?Wd+22:-22,shZ=lerp(z0,z1,fly),strike=f>.6&&f<.88?Math.sin(Math.PI*(f-.6)/.28):0,bx=118-44*strike;
+  const side=z=>{ln(P(20,0,z),P(20,TH,z),F,bw);ln(P(280,0,z),P(280,TH,z),F,bw);ln(P(20,TH,z),P(280,TH,z),F,bw);ln(P(20,42,z),P(280,42,z),FD,bw*.8)};
+  side(Wd);
+  for(const X of[20,170,280])ln(P(X,TH,0),P(X,TH,Wd),F,bw);
+  let wh=null;
+  if(pw){const w=P(322,105,Wd/2);wh=[w[0],w[1],50*sc];if(o.belt){ctx.setLineDash([]);ln([wh[0]-wh[2],wh[1]],[o.belt[0]-22,o.belt[1]],C.leather,8);ln([wh[0]+wh[2],wh[1]],[o.belt[0]+22,o.belt[1]],C.leather,8)}wheel(wh[0],wh[1],wh[2],c*Math.PI*2,C.ironL,6)}
+  ln(P(292,112,-6),P(292,112,Wd+6),pw?'#CFC7B0':C.linen,24*sc);
+  for(let i=0;i<2;i++){const X=162+i*16,yc=120+(i?1:-1)*par*34*open;poly([P(X,yc-48,0),P(X,yc-48,Wd),P(X,yc+48,Wd),P(X,yc+48,0)],null,F,4*sc);ln(P(X,yc+48,0),P(X,TH,0),FD,1.5*sc);ln(P(X,yc+48,Wd),P(X,TH,Wd),FD,1.5*sc)}
+  ctx.globalAlpha*=.85;for(let i=0;i<16;i++){const z=8+i*(Wd-16)/15,yS=120+(i%2?1:-1)*par*34*open,a=P(290,124,z),b=P(170,yS,z),e=P(72,120,z);ctx.strokeStyle=C.thread;ctx.lineWidth=1.3*sc;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(e[0],e[1]);ctx.stroke()}ctx.globalAlpha/=.85;
+  poly([P(72,120,0),P(72,120,Wd),P(12,120,Wd),P(12,120,0)],C.linen);poly([P(12,120,0),P(12,120,Wd),P(8,84,Wd),P(8,84,0)],'#D6CDB4');
+  for(let j=0;j<8;j++){const X=72-(j+frac(c))*8;if(X>13)ln(P(X,120,2),P(X,120,Wd-2),'rgba(120,100,60,.45)',1.2*sc)}
+  ln(P(8,80,-6),P(8,80,Wd+6),'#D6CDB4',20*sc);
+  ln(P(118,TH,Wd),P(bx,96,Wd),FD,5*sc);
+  poly([P(bx,102,0),P(bx,150,0),P(bx,150,Wd),P(bx,102,Wd)],'rgba(240,230,200,.16)',FD,3*sc);
+  for(let i=1;i<14;i++){const z=i*Wd/14;ln(P(bx,102,z),P(bx,150,z),pw?'rgba(200,215,225,.6)':'rgba(240,220,170,.6)',1*sc)}
+  ln(P(bx,100,-12),P(bx,100,Wd+12),FD,9*sc);
+  if(pw)for(const e of[0,1]){const zE=e?Wd+30:-30,launch=(z0>Wd/2)===!!e,kick=launch?Math.sin(Math.PI*clamp((f-.08)/.22))*34:0;ln(P(bx-12,8,zE),P(bx-12,150,zE+(e?-kick:kick)),C.oakL,6*sc)}
+  const dz=Math.sign(z1-z0);if(pw&&fly>0&&fly<1)for(let g=4;g>0;g--){ctx.globalAlpha*=.16;ln(P(bx-12,124,shZ-dz*g*22-16),P(bx-12,124,shZ-dz*g*22+16),C.gold,9*sc);ctx.globalAlpha/=.16}
+  ln(P(bx-12,124,shZ-16),P(bx-12,124,shZ+16),C.gold,9*sc);
+  ln(P(118,TH,0),P(bx,96,0),FD,5*sc);
+  side(0);
+  return{P,strike,fly,f,bx,wh}}
+function weaver(lm,sc,f){const P=lm.P,h=P(-40,90,80);rect(P(-66,0,80)[0],h[1]+8*sc,60*sc,10*sc,C.oakD);ln([h[0]-18*sc,h[1]+14*sc],[h[0]-20*sc,P(0,0,0)[1]],C.oakD,7*sc);ln([h[0]+22*sc,h[1]+14*sc],[h[0]+24*sc,P(0,0,0)[1]],C.oakD,7*sc);
+  person(h[0],h[1],sc*.8,{...LUDD,sit:true,bend:.14+.05*lm.strike,armA:[1.5-.45*lm.strike,.35],armB:[1.1+.35*Math.sin(lm.fly*Math.PI),.55]})}
+
+/* ---------- spinning wheel ---------- */
+function spinner(t,al){ctx.save();ctx.globalAlpha=al;const run=al>.6?t:0;
+  ln([300,800],[300,440],C.oakD,9);ctx.fillStyle=C.flax;ctx.beginPath();ctx.ellipse(300,455,36,66,0,0,7);ctx.fill();for(let i=0;i<14;i++)ln([280+rnd(i)*40,400+rnd(i+9)*100],[278+rnd(i+3)*44,430+rnd(i+5)*90],'rgba(120,95,30,.5)',1.5);
+  ln([370,712],[690,688],C.oak,16);ln([390,712],[375,800],C.oak,10);ln([670,690],[690,800],C.oak,10);ln([560,690],[560,620],C.oakD,12);ln([415,706],[415,612],C.oakD,9);
+  ctx.strokeStyle='rgba(243,236,214,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(415,598);ctx.lineTo(560,500);ctx.moveTo(415,626);ctx.lineTo(560,740);ctx.stroke();
+  wheel(560,620,120,run*1.7,C.oak,10,12);circ(415,612,15,C.oakL);rect(392,602,24,20,C.linen);
+  rect(170,696,90,10,C.oakD);ln([182,706],[176,800],C.oakD,8);ln([248,706],[254,800],C.oakD,8);
+  const wob=Math.sin(run*2.2)*.08;
+  ctx.strokeStyle=C.thread;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(302,505);ctx.lineTo(296,640);ctx.lineTo(398,612);ctx.stroke();
+  person(215,690,1.3,{col:'#3B2A33',shirt:'#8F6E5A',shade:'#7A5C4B',head:'#3B2A33',sit:true,skirt:true,bun:true,bend:.1,armA:[1.0+wob,.5],armB:[.75-wob,.9]});
+  ctx.restore()}
+
+/* ---------- backgrounds ---------- */
+function stube(x0=0,x1=W){ctx.save();ctx.beginPath();ctx.rect(x0,0,x1-x0,H);ctx.clip();rect(0,0,W,H,'#3B2B20');rect(0,780,W,120,'#4E3626');for(let x=0;x<W;x+=130)ln([x,780],[x-60,900],'rgba(0,0,0,.25)',2);rect(0,772,W,10,'#2E2018');ctx.restore()}
+function windowLight(x,y){rect(x-10,y-10,220,270,C.oakD);rect(x,y,200,250,'#C9DCE2');ln([x+100,y],[x+100,y+250],C.oakD,8);ln([x,y+125],[x+200,y+125],C.oakD,8);poly([[x,y+250],[x+200,y+250],[x+420,900],[x+60,900]],'rgba(230,220,180,.07)')}
+function hallBg(fy=780){rect(0,0,W,H,'#27323C');rect(0,fy,W,H-fy,'#3A4955')}
+
+/* ---------- section view of the hall (shaft, belts, machines) ---------- */
+function belt(x,sy,wy,off,run,t){const pr=38,wr=50,TL=L2([x-pr,sy],[x+wr+20,wy-10],off),TR=L2([x+pr,sy],[x+wr+100,wy+72],off);
+  const path=()=>{ctx.beginPath();ctx.moveTo(x-wr,wy);ctx.lineTo(TL[0],TL[1]);ctx.quadraticCurveTo((TL[0]+TR[0])/2,Math.min(TL[1],TR[1])-48,TR[0],TR[1]);ctx.lineTo(x+wr,wy);ctx.arc(x,wy,wr,0,Math.PI)};
+  ctx.lineJoin='round';ctx.lineCap='butt';ctx.strokeStyle=C.leather;ctx.lineWidth=10;path();ctx.stroke();
+  ctx.setLineDash([16,26]);ctx.lineDashOffset=run?-t*260:0;ctx.strokeStyle='rgba(240,210,160,.45)';ctx.lineWidth=4;path();ctx.stroke();ctx.setLineDash([]);return TL}
+function section(t,o){const{xs,sy,fy,ww}=o,wy=fy-150;hallBg(fy);
+  for(let x=ww+130;x<W;x+=290){ln([x,0],[x,sy-14],C.ironD,10);rect(x-16,sy-22,32,14,C.ironD)}
+  rect(0,0,ww,fy,C.brickD);bricks(0,0,ww,fy);rect(ww-8,0,8,fy,'rgba(0,0,0,.3)');
+  circ(ww-30,sy,o.eyes?60+4*Math.sin(t*2.4):54,'#05070A');
+  ln([ww-60,sy],[W+20,sy],C.ironL,16);ctx.setLineDash([10,34]);ctx.lineDashOffset=-t*90;ln([ww-20,sy-3],[W,sy-3],'rgba(255,255,255,.35)',3);ctx.setLineDash([]);
+  if(o.eyes){const bl=frac(t*.23)>.94?.15:1;for(const dx of[-18,18]){ctx.fillStyle=C.gold;ctx.beginPath();ctx.ellipse(ww-32+dx,sy-26,13,9*bl,dx<0?.2:-.2,0,7);ctx.fill();circ(ww-32+dx,sy-26,4.5*bl,'#05070A')}}
+  const tops=[];
+  xs.forEach((x,i)=>{const off=o.off&&o.off.i===i?o.off.s:0,run=off<.04;
+    rect(x-125,fy-205,250,205,'#44545F');rect(x-125,fy-205,250,16,C.ironD);rect(x-110,fy-40,220,12,C.ironD);
+    rect(x-108,fy-176+(run?10*Math.sin(t*17+i*2):0),216,9,C.ironL);for(let j=0;j<12;j++)ln([x-104+j*19,fy-186],[x-104+j*19,fy-110],'rgba(243,236,214,.5)',1.5);
+    wheel(x,sy,38,t*5+i,C.ironL,6);wheel(x,wy,50,run?t*5+i:i*1.3,C.ironL,6);
+    tops[i]=belt(x,sy,wy,off,run,t);
+    if(!(o.noWorker&&o.noWorker===i+1)){const drain=o.eyes?.86+.05*Math.sin(t*3+i):1;person(x+178,fy,1.05*drain,{...WORK,dir:-1,armA:run?[1.1+.25*Math.sin(t*9+i),.5]:[.1,.1],armB:run?[.9+.25*Math.cos(t*9+i),.6]:[.05,.1]})}
+  });
+  if(o.flow){for(let i=0;i<xs.length;i++){const x=xs[i];const p=o.flow>0?[[ww-30,sy],[x-38,sy],[x-50,wy]]:[[x+170,fy-150],[x+50,wy],[x+38,sy],[ww-30,sy]];const n=o.flow>0?7:9;for(let j=0;j<n;j++){const u=frac(t*(o.flow>0?.22:.16)+j/n+i*.13),q=along(p,u),a=Math.sin(u*Math.PI);ctx.globalAlpha=a;circ(q[0],q[1],16,o.flow>0?'rgba(240,207,106,.25)':'rgba(230,90,80,.25)');circ(q[0],q[1],7,o.flow>0?C.gold:'#F0685C');ctx.globalAlpha=1}}}
+  return tops}
+
+/* ---------- audio ---------- */
+let AC=null,master,nGain,nBuf,soundOn=false,nextClack=0;const aud={r:0,cr:0,cg:0,cf:1500};
+function initAudio(){if(AC)return;const A=window.AudioContext||window.webkitAudioContext;if(!A)return;AC=new A();master=AC.createGain();master.gain.value=0;master.connect(AC.destination);nBuf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=nBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=AC.createBufferSource();s.buffer=nBuf;s.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=320;nGain=AC.createGain();nGain.gain.value=0;s.connect(f);f.connect(nGain);nGain.connect(master);s.start()}
+function clack(){const s=AC.createBufferSource();s.buffer=nBuf;const f=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=aud.cf*(.8+Math.random()*.5);f.Q.value=5;const g=AC.createGain(),n=AC.currentTime;g.gain.setValueAtTime(Math.max(.001,aud.cg),n);g.gain.exponentialRampToValueAtTime(.001,n+.07);s.connect(f);f.connect(g);g.connect(master);s.start(n,Math.random()*1.5,.09)}
+function audioTick(){if(!AC)return;const n=AC.currentTime,live=soundOn&&playing;master.gain.setTargetAtTime(live?.7:0,n,.15);nGain.gain.setTargetAtTime(aud.r,n,.4);if(live&&aud.cr>0&&n>=nextClack){clack();nextClack=n+(1/aud.cr)*(.8+.4*Math.random())}}
+function setAud(r,cr,cg,cf){aud.r=r;aud.cr=cr;aud.cg=cg;aud.cf=cf||1500}
+
+/* ---------- scenes ---------- */
+const SC=[
+{title:'Am Abend',beats:['Abends sitzt Ludd mit seiner Familie am Tisch. Er erzählt, wie er vom Weber zum Fabrikarbeiter wurde.'],
+ words:[['der Weber','Er macht aus Garn ein Tuch.'],['die Fabrik','Großes Gebäude, in dem viele Menschen an Maschinen arbeiten.'],['das Rätsel','Etwas, das man nicht versteht.']],
+ draw(t){setAud(0,0,0);rect(0,0,W,H,'#17161D');rect(0,720,W,180,'#231A16');
+  ctx.globalAlpha=.16+.03*Math.sin(t*1.3);poly([[150,330],[150,270],[215,330],[215,270],[280,330],[280,270],[345,330],[345,270],[410,330],[410,170],[450,170],[450,330],[520,330],[520,420],[150,420]],'#000');ctx.globalAlpha=1;
+  rect(1170,130,220,260,'#2B2320');rect(1180,140,200,240,'#22304A');circ(1320,200,26,'#E8E4D0');ln([1280,140],[1280,380],'#2B2320',8);ln([1180,260],[1380,260],'#2B2320',8);
+  person(700,610,1.05,{col:'#3A3340',shirt:'#8A7480',head:'#3A3340',sit:true,armA:[1.2,1.5],armB:[1.1,1.6]});
+  person(940,620,.9,{col:'#3A3340',shirt:'#96805F',head:'#3A3340',sit:true,dir:-1,armA:[1.2,1.7],armB:[1.0,1.8]});
+  rect(500,560,620,26,C.oak);rect(500,586,620,8,C.oakD);rect(530,594,22,190,C.oakD);rect(1070,594,22,190,C.oakD);
+  rect(803,500,14,60,C.linen);const fl=1+.12*Math.sin(t*11)+.08*Math.sin(t*23);ctx.fillStyle=C.gold;ctx.beginPath();ctx.ellipse(810,482,8,18*fl,0,0,7);ctx.fill();
+  rect(400,640,110,12,C.oakD);rect(415,652,12,130,C.oakD);rect(485,652,12,130,C.oakD);
+  person(455,640,1.5,{...LUDD,sit:true,bend:.12,armA:[1.35+.3*Math.sin(t*1.7),.9+.35*Math.sin(t*2.3)],armB:[.9,.9]});
+  rect(1110,640,110,12,C.oakD);rect(1125,652,12,130,C.oakD);rect(1195,652,12,130,C.oakD);
+  person(1165,640,1.4,{col:'#33293A',shirt:'#4B3F55',head:'#B9B4AA',sit:true,skirt:true,bun:true,dir:-1,bend:.16,armA:[.9,1.2],armB:[.8,1.3]});
+  const g=ctx.createRadialGradient(810,490,10,810,490,720*fl);g.addColorStop(0,'rgba(246,201,107,.5)');g.addColorStop(.35,'rgba(246,180,90,.16)');g.addColorStop(1,'rgba(246,180,90,0)');ctx.globalCompositeOperation='screen';rect(0,0,W,H,g);ctx.globalCompositeOperation='source-over';
+  lab('Ludd, der Weber',455,470,330,400);lab('seine Mutter',1165,480,1290,440);lab('die Kinder',705,520,760,330)}},
+
+{title:'Früher: die Stube',beats:[
+ 'Vor der Industrialisierung arbeitet man zu Hause. Die Spinnerin dreht am Spinnrad aus Flachs einen Faden: das Garn.',
+ 'Ludd ist Weber. Sein Webstuhl ist aus Eichenbohlen gebaut, er hat ihn von seinem Vater geerbt. Die Schäfte heben und senken die Fäden. Das Schiffchen trägt den Faden hindurch. Das Blatt schlägt ihn fest.',
+ 'In der Stube bestimmt der Mensch das Tempo. Hält die Hand an, steht auch der Webstuhl still.'],
+ words:[['der Flachs','Pflanze. Aus ihren Fasern macht man Leinen.'],['spinnen','Fasern zu einem Faden drehen.'],['das Garn, der Faden','Lange, dünne Schnur aus Fasern.'],['weben','Aus Fäden ein Tuch machen.'],['der Webstuhl','Gerät zum Weben.'],['die Eichenbohle','Dickes Brett aus Eichenholz.'],['der Schaft, die Schäfte','Rahmen im Webstuhl. Er hebt und senkt die Fäden.'],['das Schiffchen','Kleines Teil, das den Faden von einer Seite zur anderen trägt.'],['das Blatt','Kamm im Webstuhl. Er schlägt den neuen Faden fest.'],['das Leinen','Stoff aus Flachs.']],
+ draw(t,b,bt){stube();windowLight(660,90);
+  const lm=(ctx.globalAlpha=b===0?.32:1,loom(880,800,1.7,b===0?.3:t*.55));weaver(lm,1.7);ctx.globalAlpha=1;
+  spinner(t,b===1?.32:1);
+  setAud(0,b===0?0:.55,.25,700);
+  const P=lm.P;
+  if(b===0){lab('der Flachs',318,430,420,330);lab('das Spinnrad',560,505,590,400);lab('das Garn',350,625,330,850)}
+  if(b===1){lab('der Webstuhl',...P(280,250,170),1440,200);lab('die Schäfte',...P(170,172,170),1200,270);lab('das Blatt',...P(118,150,0),980,200);lab('das Schiffchen',...P(106,124,85),1140,855);lab('das Tuch',...P(40,120,85),860,855)}
+  if(b===2){lab('spinnen',420,612,420,330);lab('weben',...P(60,120,85),1100,250)}}},
+
+{title:'Von Fabriktor zu Fabriktor',beats:[
+ 'Ludd zieht mit den Kindern und der Mutter in die Stadt. Er geht von Fabriktor zu Fabriktor und bittet um Arbeit. Wieder wird er fortgeschickt.',
+ 'Aber er lässt nicht locker. An einem Tor ruft man ihn plötzlich zurück: Hier gibt es Arbeit.',
+ 'Im Torbogen kommt ihm ein Arbeiter entgegen. Seine Hand ist mit blutigem Mull umwickelt. In der anderen Hand hält er ein blutiges Leinenbündel. Ludd ahnt, was darin ist.'],
+ words:[['das Fabriktor','Großer Eingang der Fabrik.'],['der Torbogen','Runder, gemauerter Bogen über dem Tor.'],['die Habseligkeiten','Die wenigen Dinge, die jemand besitzt.'],['nicht lockerlassen','Nicht aufgeben.'],['der Mull','Dünner Stoff für Verbände.'],['der Stumpf','Was von einem abgetrennten Körperteil übrig ist.'],['das Leinenbündel','Etwas, das in ein Tuch aus Leinen gewickelt ist.']],
+ draw(t,b,bt){setAud(.05,0,0);rect(0,0,W,H,'#AEB9C1');
+  rect(1220,20,64,200,C.brickD);for(let i=0;i<6;i++){const u=frac(t*.08+i/6);circ(1252+u*220+30*Math.sin(i),10-u*60,30+u*70,`rgba(70,75,80,${.35*(1-u)})`)}
+  rect(640,290,320,480,'#98A2A8');poly([[700,620],[700,560],[740,620],[740,560],[780,620],[780,560],[820,620],[820,560],[860,620],[900,620],[900,760],[700,760]],'#7B858C');rect(640,700,320,70,'#8A8782');
+  ctx.beginPath();ctx.rect(0,170,W,600);ctx.moveTo(650,770);ctx.lineTo(650,450);ctx.arc(800,450,150,Math.PI,0);ctx.lineTo(950,770);ctx.closePath();ctx.fillStyle=C.brick;ctx.fill('evenodd');
+  ctx.save();ctx.clip('evenodd');bricks(0,170,W,600);ctx.restore();
+  ctx.strokeStyle=C.brickD;ctx.lineWidth=22;ctx.lineCap='butt';ctx.beginPath();ctx.moveTo(650,770);ctx.lineTo(650,450);ctx.arc(800,450,150,Math.PI,0);ctx.lineTo(950,770);ctx.stroke();
+  rect(0,160,W,18,C.brickD);rect(645,196,310,66,C.ironD);text('FABRIK',800,231,46,C.linen);
+  rect(0,765,W,135,'#77726C');for(let x=-40;x<W;x+=90)ln([x,765],[x-70,900],'rgba(0,0,0,.12)',2);
+  // family
+  poly([[150,800],[165,740],[215,728],[250,760],[245,800]],'#6B5B45');ln([200,730],[205,712],'#4A3F30',5);
+  person(300,802,1.08,{col:'#33293A',shirt:'#4B3F55',head:'#B9B4AA',skirt:true,bun:true,bend:.14,armA:[.5,.8]});
+  person(375,804,.62,{col:'#2B2530',shirt:'#6A5A48'});person(435,804,.74,{col:'#2B2530',shirt:'#5A4A52',skirt:true,bun:true});
+  let lx,ld=1,lw=null,lb=0,la=null,ga=[.1,.1],wx=null;
+  if(b===0){const u=ss((bt-3.5)/4);lx=lerp(900,590,u);if(bt<3.5){la=[1.15+.12*Math.sin(t*3),.7];ga=[1.7+.3*Math.sin(t*7),.4]}else{ld=-1;lb=.16;if(u<1)lw=t*7}}
+  if(b===1){const u=ss((bt-1.4)/3.6);lx=lerp(590,790,u);ld=bt<.9?-1:1;lb=bt<.9?.16:0;if(u>0&&u<1)lw=t*8;ga=[2.7+.3*Math.sin(t*9),.25];
+    ctx.strokeStyle=C.ironD;ctx.lineWidth=5;for(let i=0;i<3;i++){const r=frac(t*.9+i/3);ctx.globalAlpha=1-r;ctx.beginPath();ctx.arc(1015,600,30+r*90,Math.PI*.85,Math.PI*1.3);ctx.stroke()}ctx.globalAlpha=1}
+  if(b===2){const u=ss(bt/9);wx=lerp(990,520,u);lx=lerp(700,870,ss(bt/7));ld=wx<lx-40?-1:1;if(bt<7)lw=t*5;
+    for(let x=990;x>wx+20;x-=38)circ(x+8*rnd(x),806+10*rnd(x+1),4+3*rnd(x+2),C.blood)}
+  person(1040,800,1.2,{col:'#151C22',shirt:'#3C4A56',cap:'#151C22',dir:-1,armA:ga});
+  if(wx!=null)person(wx,802,1.18,{...WORK,shirt:'#7B8790',dir:-1,walk:bt<9?t*4.5:null,bend:.1,armA:[2.55,.35],armB:[.55,1.9],hold(c,ha,hb){circ(hb[0],hb[1],17,C.linen);circ(hb[0]+4,hb[1]+6,9,C.blood);circ(ha[0],ha[1]-4,13,'#F4F1E6');circ(ha[0]+2,ha[1]-9,6,C.blood)}});
+  person(lx,802,1.2,{...LUDD,dir:ld,walk:lw,bend:lb,armA:la});
+  if(b===0){lab('das Fabriktor',668,400,430,300);lab('die Habseligkeiten',200,745,200,640);lab('der Pförtner',1040,570,1250,520)}
+  if(b===1){lab('der Torbogen',905,345,1110,330);lab('Ludd',lx,565,lx-90,500)}
+  if(b===2&&wx!=null){lab('der Mull',wx-52,548,wx-200,470);lab('das Leinenbündel',wx-30,640,wx-240,700);if(wx<900)lab('die Blutspur',965,808,1150,860)}}},
+
+{title:'Die Blutspur',beats:[
+ 'Ludd muss nur der Blutspur folgen, um seinen neuen Arbeitsplatz zu finden. Sie führt über einen menschenleeren Hof.',
+ 'Schon auf dem Hof hört er einen infernalischen Lärm. Er kommt aus der Halle.'],
+ words:[['die Blutspur','Tropfen von Blut auf dem Boden, einer nach dem anderen.'],['der Hof','Freier Platz zwischen Gebäuden.'],['menschenleer','Kein Mensch ist da.'],['infernalisch','Wie in der Hölle. Hier: schrecklich laut.'],['der Lärm','Sehr laute, unangenehme Geräusche.'],['die Halle','Sehr großer, hoher Raum.']],
+ draw(t,b,bt){rect(0,0,W,H,'#A9B4BC');
+  const u=b===0?lerp(.03,.5,ss(bt/10)):lerp(.5,.93,ss(bt/9)),I=b===0?.2+.3*u:.55+.45*u;setAud(I*.55,9*I,.1*I,1700);
+  rect(1430,40,60,300,C.brickD);for(let i=0;i<6;i++){const r=frac(t*.08+i/6);circ(1460+r*200,30-r*50,26+r*70,`rgba(70,75,80,${.35*(1-r)})`)}
+  rect(0,440,740,220,'#7C5347');bricks(0,440,740,220,'rgba(0,0,0,.12)');rect(0,432,740,12,C.brickD);
+  for(let x=700;x<1600;x+=112){poly([[x,340],[x,252],[x+112,340]],C.brickD);ln([x+3,338],[x+3,256],'#DCE6EA',6)}
+  rect(700,336,900,324,C.brick);bricks(700,336,900,324);
+  for(let i=0;i<7;i++){if(i===3)continue;rect(760+i*118,420,60,90,`rgba(240,220,150,${.55+.25*Math.sin(t*(7+i)+i)})`);ln([790+i*118,420],[790+i*118,510],C.brickD,4)}
+  rect(1030,470,110,190,'#0A0D10');rect(1040,480,90,180,`rgba(240,200,120,${.12+.1*Math.sin(t*9)})`);
+  const g=ctx.createLinearGradient(0,650,0,900);g.addColorStop(0,'#8A857F');g.addColorStop(1,'#6F6A64');rect(0,656,W,244,g);
+  for(let j=0;j<7;j++){const y=670+j*j*5.5;ln([0,y],[W,y],'rgba(0,0,0,.08)',2)}
+  const bz=q=>{const a=1-q;return[a*a*a*110+3*a*a*q*520+3*a*q*q*760+q*q*q*1085,a*a*a*880+3*a*a*q*830+3*a*q*q*705+q*q*q*664]};
+  for(let j=0;j<46;j++){const q=j/45,p=bz(q);circ(p[0]+14*(rnd(j)-.5),p[1]+8*(rnd(j+50)-.5),lerp(9,2.5,q)*(.7+.6*rnd(j+9)),C.blood)}
+  ctx.strokeStyle=C.ironD;ctx.lineCap='round';for(let i=0;i<5;i++){const r=frac(t*.55+i/5);ctx.globalAlpha=I*(1-r);ctx.lineWidth=7-4*r;ctx.beginPath();ctx.arc(1085,565,40+r*780,Math.PI*.62,Math.PI*1.22);ctx.stroke()}ctx.globalAlpha=1;
+  const p=bz(u),mv=(b===0?bt<10:bt<9);person(p[0],p[1]+4,lerp(1.5,.62,u),{...LUDD,walk:mv?t*5:null});
+  if(b===0){lab('der Hof',420,740,330,560);lab('die Blutspur',...bz(.62),900,860);lab('das Sheddach',868,290,640,200)}
+  if(b===1){lab('die Halle',1300,380,1250,180);lab('der Lärm',760,560,560,380)}}},
+
+{title:'Die Halle',beats:[
+ 'Drinnen ist es laut, aber alles hat seine Ordnung. Flach fällt das Licht durch die Sheddachfenster auf lange Reihen von Maschinen. In der Luft glitzern feine Flachsfasern. Vor jeder Maschine steht ein Mensch.',
+ 'Die Webstühle erkennt Ludd sofort. Sie funktionieren wie seiner, nur irrwitzig schnell: Die Schäfte tanzen, das Blatt schlägt, das Schiffchen schießt hin und her. Der Arbeiter schaut der Maschine nur noch zu.'],
+ words:[['das Sheddach','Dach mit Zacken wie eine Säge. In den Zacken sind Fenster.'],['die Flachsfaser','Sehr dünner Faden aus der Flachspflanze.'],['die Verrichtung','Kleine Arbeit, ein Handgriff.'],['der Schwengel','Hebel. Er stößt das Schiffchen an.'],['irrwitzig','Verrückt, kaum zu glauben.'],['klacken, surren, rattern, quietschen','Geräusche der Maschinen.']],
+ draw(t,b,bt){
+  if(b===0){setAud(.55,13,.12,1900);const vx=800,vy=400,sf=1/(1+12*.5);
+   rect(0,0,W,H,'#202A33');
+   poly([[0,0],[vx-1500*sf,vy-360*sf],[vx-1500*sf,vy+520*sf],[0,H]],'#2A3640');poly([[W,0],[vx+1500*sf,vy-360*sf],[vx+1500*sf,vy+520*sf],[W,H]],'#2A3640');
+   rect(vx-1500*sf,vy-360*sf,3000*sf,880*sf,'#61717C');
+   const fg=ctx.createLinearGradient(0,vy,0,H);fg.addColorStop(0,'#566672');fg.addColorStop(1,'#3B4A56');poly([[vx-1500*sf,vy+520*sf],[vx+1500*sf,vy+520*sf],[W+800,H],[-800,H]],fg);
+   for(let k=11;k>=0;k--){const s1=1/(1+k*.5),s2=1/(1+(k+.45)*.5);poly([[vx-1500*s1,vy-360*s1],[vx+1500*s1,vy-360*s1],[vx+1500*s2,vy-360*s2],[vx-1500*s2,vy-360*s2]],`rgba(220,232,238,${.35+.6*s1})`);
+     if(k<7)poly([[vx-1100*s1,vy-360*s1],[vx+1100*s1,vy-360*s1],[vx+1100*s1-260*s1,vy+520*s1],[vx-1100*s1-260*s1,vy+520*s1]],'rgba(225,238,244,.035)')}
+   const lanes=[-1000,-640,-280,280,640,1000],s0=1/(1+.3*.5);
+   for(const l of lanes)ln([vx+l*sf,vy-285*sf],[vx+l*s0,vy-285*s0],C.ironL,3);
+   for(let d=11;d>=0;d--){const s=1/(1+(d+.3)*.5),fy=vy+520*s;ctx.globalAlpha=clamp(.25+s*1.3);
+     lanes.forEach((l,li)=>{const x=vx+l*s,id=d*7+li;
+       ln([x-9*s,vy-285*s],[x-20*s,fy-70*s],C.leather,Math.max(1,4*s));ln([x+9*s,vy-285*s],[x+20*s,fy-70*s],C.leather,Math.max(1,4*s));circ(x,vy-285*s,12*s,C.ironL);
+       rect(x-100*s,fy-150*s,200*s,150*s,'#3B4955');rect(x-100*s,fy-150*s,200*s,12*s,C.ironD);rect(x-88*s,fy-132*s,176*s,9*s,C.thread);
+       rect(x-90*s,fy-100*s+14*s*Math.sin(t*19+id),180*s,8*s,C.ironL);wheel(x,fy-70*s,22*s,t*7+id,C.ironL,4);
+       const side=l<0?1:-1,fast=id%3===0;person(x+side*135*s,fy,s*.82,{...WORK,dir:-side,armA:fast?[1.2+.4*Math.sin(t*11+id),.6]:[.1,.15],armB:fast?[1.0+.4*Math.cos(t*11+id),.7]:[.05,.1]})})}
+   ctx.globalAlpha=1;
+   for(let i=0;i<170;i++){const x=frac(rnd(i)+t*.006*(1+rnd(i+7)))*W,y=frac(rnd(i+200)+t*.01*(rnd(i+3)-.3))*620+20,a=Math.pow(.5+.5*Math.sin(t*(1.5+3*rnd(i+5))+i),6);circ(x,y,1.5+2.5*rnd(i+11),`rgba(250,235,180,${.15+.8*a})`)}
+   person(790,905,1.55,{...LUDD,armA:[.3,.2]});
+   lab('die Sheddachfenster',560,70,300,160);lab('die Flachsfasern',1000,230,1120,120);lab('die Welle',vx+640*s0,vy-285*s0,1440,300);lab('je ein Mensch',vx-280*s0+135*s0,vy+520*s0-150,520,860)}
+  else{setAud(.5,3.1,.3,1300);hallBg(800);ln([0,70],[W,70],C.ironL,16);ctx.setLineDash([10,34]);ctx.lineDashOffset=-t*90;ln([0,67],[W,67],'rgba(255,255,255,.35)',3);ctx.setLineDash([]);
+   for(let x=120;x<W;x+=300)ln([x,0],[x,56],C.ironD,10);
+   const bx=560+322*1.9+85*.42*1.9;wheel(bx,70,34,t*6,C.ironL,6);
+   const lm=loom(560,800,1.9,t*3.1,{power:true,belt:[bx,70]}),P=lm.P;
+   person(330,802,1.45,{...LUDD,armA:[.35,.5],bend:-.05});
+   person(470,802,1.4,{...WORK,armA:[-.25,-.3],armB:[-.3,-.3]});
+   lab('die Schäfte',...P(170,172,170),1010,215);lab('das Blatt',...P(118,150,0),760,215);lab('das Schiffchen',...P(106,124,85),830,860);lab('der Schwengel',...P(94,60,-30),560,860);lab('der Riemen',lm.wh[0]+lm.wh[2]-8,330,1440,330)}}},
+
+{title:'Das Maultier',beats:[
+ 'Im Vorwerk wird das Garn gesponnen. Die Spinnmaschinen heißen Maultiere. Ein einziger Arbeiter spinnt damit auf 80 Spindeln gleichzeitig.',
+ 'Das Garn berührt er nicht mehr. Mit Maulschlüssel und Ölkanne geht er vor der Maschine hin und her. Er bückt und streckt sich im Rhythmus der Maschine, wenn sie vor- und zurückfährt.'],
+ words:[['das Vorwerk','Teil der Fabrik. Hier wird das Garn gesponnen und gespult.'],['das Maultier','Hier: Name einer Spinnmaschine (englisch: mule).'],['die Spindel','Dünner Stab. Er dreht sich und wickelt das Garn auf.'],['spulen','Garn auf eine Rolle wickeln.'],['der Maulschlüssel','Werkzeug für Schrauben.'],['die Ölkanne','Kleine Kanne mit Öl für die Maschine.'],['sich bücken, sich strecken','Den Körper nach unten beugen, den Körper lang machen.']],
+ draw(t,b,bt){setAud(.42,5,.14,2300);hallBg(470);ln([0,60],[W,60],C.ironL,14);for(let x=100;x<W;x+=300)ln([x,0],[x,48],C.ironD,10);
+  const Q=mk(250,590,1,[-.28,.36],[1,0]),ZL=1150,cu=frac(t/5.2),cx=cu<.6?lerp(40,270,ss(cu/.6)):lerp(270,40,ss((cu-.6)/.4)),out=(cx-40)/230;
+  for(const z of[0,383,767,ZL])ln(Q(0,0,z),Q(330,0,z),C.ironD,7);
+  for(let z=0;z<=ZL;z+=230)ln(Q(0,0,z),Q(0,300,z),C.iron,10);ln(Q(0,300,0),Q(0,300,ZL),C.iron,10);
+  for(let i=0;i<40;i++){const z=14+i*(ZL-28)/39,a=Q(0,292,z);rect(a[0]-8,a[1],16,46,C.linen);ln([a[0],a[1]+46],Q(0,166,z),'rgba(243,236,214,.6)',2)}
+  ln(Q(0,160,0),Q(0,160,ZL),C.ironL,14);
+  const hs=Q(0,150,575);ln([hs[0]-24,hs[1]],[hs[0]-14,60],C.leather,8);ln([hs[0]+24,hs[1]],[hs[0]+14,60],C.leather,8);wheel(hs[0],60,26,t*6,C.ironL,6);
+  ctx.strokeStyle='rgba(243,236,214,.75)';ctx.lineWidth=1.3;ctx.beginPath();for(let i=0;i<80;i++){const z=10+i*(ZL-20)/79,a=Q(4,158,z),e=Q(cx-10,128,z);ctx.moveTo(a[0],a[1]);ctx.lineTo(e[0],e[1])}ctx.stroke();
+  poly([Q(0,0,540),Q(0,215,540),Q(0,215,610),Q(0,0,610)],'#34424E');wheel(hs[0],hs[1],46,t*6,C.ironL,6);
+  poly([Q(cx-22,76,0),Q(cx+32,76,0),Q(cx+32,76,ZL),Q(cx-22,76,ZL)],C.ironL);poly([Q(cx+32,12,0),Q(cx+32,76,0),Q(cx+32,76,ZL),Q(cx+32,12,ZL)],C.iron);
+  for(const z of[0,383,767,ZL]){const w=Q(cx+10,10,z);wheel(w[0],w[1],13,cx*.08,C.ironD,4)}
+  for(let i=0;i<80;i++){const z=10+i*(ZL-20)/79;ln(Q(cx+5,76,z),Q(cx-10,130,z),C.ironD,3);ln(Q(cx+3,84,z),Q(cx-5,112,z),C.linen,6)}
+  const wz=330+520*(.5+.5*Math.sin(t*.33)),dir=Math.cos(t*.33)>0?1:-1,f=Q(cx+95,0,wz),bend=.95*ss(out*1.2),up=1-ss(out*2.5);
+  person(f[0],f[1],1.3,{...WORK,shirt:'#8A99A4',dir,walk:t*4.2,bend,armA:[lerp(.7,2.7,up),.25],armB:[lerp(.9,.4,up),.5],hold(c,ha,hb){c.strokeStyle='#C5D0D8';c.lineWidth=5;c.beginPath();c.moveTo(ha[0],ha[1]);c.lineTo(ha[0]+16,ha[1]-22);c.stroke();c.beginPath();c.arc(ha[0]+19,ha[1]-27,7,.6,4.6);c.stroke();poly([[hb[0]-9,hb[1]+14],[hb[0]+9,hb[1]+14],[hb[0]+3,hb[1]-6],[hb[0]-3,hb[1]-6]],'#C9A24A');c.strokeStyle='#C9A24A';c.lineWidth=3;c.beginPath();c.moveTo(hb[0],hb[1]-6);c.lineTo(hb[0]+20,hb[1]-18);c.stroke()}});
+  if(b===0){lab('das Maultier',...Q(0,300,300),430,180);lab('80 Spindeln',...Q(cx-8,125,ZL-150),1380,240);lab('das Garn',...L2(Q(4,158,880),Q(cx-10,128,880),.5),1000,180);lab('der Wagen',...Q(cx+32,45,60),170,820)}
+  else{lab('Maulschlüssel und Ölkanne',f[0],f[1]-190+110*bend,f[0],860);lab('vor und zurück',...Q(cx+32,45,1100),1420,820)}}},
+
+{title:'Der Riemen',beats:[
+ 'Eine lange Welle unter der Decke treibt alle Maschinen an. Von der Welle läuft zu jeder Maschine ein Riemen.',
+ 'Manchmal fällt ein Riemen herunter. Dann steht die Maschine still.',
+ 'Das ist jetzt Ludds Arbeit: Er legt den Riemen wieder auf, während sich die Welle weiterdreht. Was ist wohl dem Arbeiter am Tor passiert?'],
+ words:[['die Welle','Hier: lange Stange aus Eisen, die sich dreht. (Auch: Welle im Meer.)'],['der Riemen','Langes Band aus Leder. Es überträgt die Drehung.'],['die Riemenscheibe','Rad, über das der Riemen läuft.'],['antreiben','In Bewegung bringen.'],['auflegen','Hier: den Riemen wieder auf das Rad legen.']],
+ draw(t,b,bt){const xs=[520,1080],sy=230,fy=790;let s=0,lift=0;
+  if(b===1)s=ss(bt/1.1);
+  if(b===2){const u=frac(bt/7.5);s=u<.2?1:u<.45?1-ss((u-.2)/.25):u<.86?0:ss((u-.86)/.14);lift=u<.2?ss(u/.2)*.45:u<.45?.45+.55*ss((u-.2)/.25):u<.6?1-ss((u-.45)/.15):0}
+  setAud(.4,s<.04?9:4.5,.13,1800);
+  const tops=section(t,{xs,sy,fy,ww:150,off:{i:1,s},noWorker:b===2?2:0});
+  if(b===2){ln([1250,fy],[1180,300],C.oak,9);ln([1300,fy],[1230,300],C.oak,9);for(let j=1;j<9;j++){const v=j/9.5;ln(L2([1250,fy],[1180,300],v),L2([1300,fy],[1230,300],v),C.oak,6)}
+    if(lift>.75){ctx.strokeStyle=C.blood;ctx.lineWidth=6;ctx.globalAlpha=.5+.5*Math.sin(t*12);ctx.beginPath();ctx.arc(1124,262,34+6*Math.sin(t*12),0,7);ctx.stroke();ctx.globalAlpha=1}
+    person(1228,548,1.2,{...LUDD,dir:-1,bend:.12+.1*lift,armA:[lerp(.9,2.75,lift),.2],armB:[lerp(.7,2.5,lift),.3]})}
+  else person(800,fy+2,1.25,{...LUDD,dir:b===1&&bt>.6?1:-1,armA:b===1?[.5,.9]:null});
+  if(b===0){lab('die Welle',330,sy,330,110);lab('die Riemenscheibe',xs[0]+30,sy-22,760,110);lab('der Riemen',xs[0]-44,430,300,430);lab('das Loch in der Wand',120,sy+30,300,330)}
+  if(b===1){lab('Der Riemen ist herunter.',tops[1][0]+40,tops[1][1]+10,1380,480);lab('Die Maschine steht.',xs[1]-60,fy-190,860,500)}
+  if(b===2){lab('Die Welle dreht sich weiter.',760,sy,760,110)}}},
+
+{title:'Wer bedient wen?',beats:[
+ 'Derselbe Webstuhl, zwei Welten. In der Stube gibt die Hand den Takt vor. In der Fabrik gibt die Maschine den Takt vor, und der Mensch folgt. Die Zahlen zählen, wie oft das Schiffchen fliegt.',
+ 'Abends erzählt Ludd von seinem Rätsel: Woher kommt die Kraft der Welle? Sie kommt aus einem Loch in der Wand. Was dahinter ist, weiß er nicht.',
+ 'Manchmal denkt er: Vielleicht geben die Arbeiterinnen und Arbeiter ihre Lebenskraft an die Maschinen. Vielleicht haust hinter dem Loch ein gefräßiges Etwas, das sich von ihnen ernährt. Wer kontrolliert hier wen: der Mensch die Maschine oder die Maschine den Menschen?'],
+ words:[['der Takt','Gleichmäßiger Rhythmus.'],['die Kraft','Energie, Stärke.'],['die Lebenskraft','Die Energie, die ein Mensch zum Leben hat.'],['speisen','Hier: Energie hineingeben. Auch: essen.'],['gefräßig','Jemand frisst sehr viel und will immer mehr.'],['hausen','An einem dunklen Ort wohnen.'],['kontrollieren','Bestimmen, was passiert.']],
+ draw(t,b,bt){
+  if(b===0){setAud(.22,3.1,.16,1400);stube(0,800);ctx.save();ctx.beginPath();ctx.rect(800,0,800,H);ctx.clip();hallBg(780);ln([800,60],[W,60],C.ironL,14);ctx.restore();
+   const a=loom(190,770,1.25,bt*.55);weaver(a,1.25);
+   const bx=930+322*1.25+85*.42*1.25;wheel(bx,60,26,t*6,C.ironL,6);
+   loom(930,770,1.25,bt*3.1,{power:true,belt:[bx,60]});person(875,772,1.05,{...WORK,armA:[-.25,-.3],armB:[-.3,-.3]});
+   rect(796,0,8,H,'#10161B');
+   text('Stube',400,130,54,C.linen);text('Fabrik',1200,130,54,C.linen);
+   text(String(Math.floor(bt*.55)),400,215,96,C.gold);text(String(Math.floor(bt*3.1)),1200,215,96,C.gold)}
+  else{const rev=b===2;setAud(.45,rev?5:8,.1,rev?900:1800);
+   section(t,{xs:[480,860,1240],sy:210,fy:780,ww:170,flow:rev?-1:1,eyes:rev});
+   if(!rev){text('?',140,216,84,C.gold);lab('das Loch in der Wand',150,262,330,420);lab('die Welle',670,210,670,90);lab('die Kraft',1050,210,1090,90)}
+   else{lab('das gefräßige Etwas',140,236,340,90);lab('die Lebenskraft',860+172,780-160,670,470)}}}}
+];
+
+/* ---------- player ---------- */
+let si=0,bi=0,T=0,beatT=0,sceneT=0,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,last=0;
+const $=id=>document.getElementById(id),chap=$('chapters');
+SC.forEach((s,i)=>{const bt=document.createElement('button');bt.textContent=(i+1)+' · '+s.title;bt.onclick=()=>go(i,0);chap.appendChild(bt)});
+function go(s,b){const ch=s!==si;si=s;bi=b;beatT=T;if(ch)sceneT=T;ui();if(!playing)frame(0,true)}
+function ui(){const s=SC[si];$('step').textContent=`Station ${si+1} von ${SC.length}`+(s.beats.length>1?` · Schritt ${bi+1} von ${s.beats.length}`:'');$('ttl').textContent=s.title;$('txt').textContent=s.beats[bi];
+  [...chap.children].forEach((c,i)=>{c.setAttribute('aria-current',i===si?'true':'false')});const cur=chap.children[si];if(cur&&chap.scrollWidth>chap.clientWidth)chap.scrollTo({left:cur.offsetLeft-chap.offsetLeft-40,behavior:'smooth'});
+  $('prev').disabled=si===0&&bi===0;$('next').disabled=si===SC.length-1&&bi===s.beats.length-1;
+  $('wordlist').innerHTML='';for(const [w,d] of s.words){const x=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=w;dd.textContent=d;x.append(dt,dd);$('wordlist').appendChild(x)}
+  $('words').hidden=!words;$('play').textContent=playing?'Pause':'Abspielen';$('play').setAttribute('aria-pressed',String(!playing))}
+function next(){const s=SC[si];if(bi<s.beats.length-1)go(si,bi+1);else if(si<SC.length-1)go(si+1,0)}
+function prev(){if(bi>0)go(si,bi-1);else if(si>0)go(si-1,SC[si-1].beats.length-1)}
+$('next').onclick=next;$('prev').onclick=prev;
+$('play').onclick=()=>{playing=!playing;ui()};
+$('wordsBtn').onclick=e=>{words=!words;e.currentTarget.setAttribute('aria-pressed',String(words));ui();if(!playing)frame(0,true)};
+$('soundBtn').onclick=e=>{soundOn=!soundOn;if(soundOn){initAudio();if(AC&&AC.state==='suspended')AC.resume()}e.currentTarget.setAttribute('aria-pressed',String(soundOn))};
+$('fsBtn').onclick=()=>{const p=$('player');try{if(document.fullscreenElement)document.exitFullscreen();else if(p.requestFullscreen)p.requestFullscreen().catch(()=>{})}catch(e){}};
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('button')&&e.key===' ')return;if(e.key==='ArrowRight'||e.key==='PageDown'){next();e.preventDefault()}else if(e.key==='ArrowLeft'||e.key==='PageUp'){prev();e.preventDefault()}});
+function resize(){const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1),w=Math.max(2,Math.round(r.width*d)),h=Math.round(w*9/16);if(cv.width!==w){cv.width=w;cv.height=h;if(!playing)frame(0,true)}}
+function frame(now,once){if(!once){const dt=Math.min(.05,(now-last)/1000||0);last=now;if(playing)T+=dt}
+  if(playing||once){ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);SC[si].draw(T,bi,T-beatT);const fa=1-clamp((T-sceneT)/.45);if(fa>0){ctx.globalAlpha=fa;rect(0,0,W,H,'#10161B');ctx.globalAlpha=1}flushLabs()}
+  audioTick();if(!once)requestAnimationFrame(frame)}
+window.__ludd={go,step:d=>{T+=d;frame(0,true)},pause:()=>{playing=false;ui()}};
+new ResizeObserver(resize).observe(cv);resize();ui();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(!playing)frame(0,true)});
+frame(0,true);requestAnimationFrame(frame);
+})();
+</script>
